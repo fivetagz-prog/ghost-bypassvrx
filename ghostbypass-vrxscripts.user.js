@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghost Bypass
 // @namespace    https://github.com/ghost-bypass
-// @version      1.0.3
+// @version      1.0.4
 // @description  Auto-bypass vrxscripts, bstshrt, Lootlabs, Linkvertise, BoostyLink, Bstlar
 // @match        https://vrxscripts.virexx.workers.dev/*
 // @match        https://bstshrt.com/*
@@ -128,7 +128,7 @@
                 </div>
                 <div class="gam-footer">
                     <button class="gam-btn gam-btn-primary" id="ll-btn" disabled>
-                        <span id="ll-btn-icon">→</span>
+                        <span id="ll-btn-icon">></span>
                         <span id="ll-btn-text">Waiting for link...</span>
                     </button>
                     <button class="gam-btn gam-btn-secondary" id="gam-btn-close">Close</button>
@@ -403,7 +403,7 @@
                 const ch = await api(ep, { op: 'challenge', csrf });
                 if (ch.verified) return true;
                 if (ch.status !== 'challenge') { await sleep(2000); continue; }
-                document.getElementById('ll-card-sub').textContent = 'Solve the widget ↓';
+                document.getElementById('ll-card-sub').textContent = 'Solve the widget below';
                 const token = await solveTS(ch.sitekey, ch.action || '', ch.cdata || '');
                 const vd = await api(ep, { op: 'verify', csrf, token, nonce: ch.nonce || '' });
                 if (vd.status === 'ok' && vd.verified) return true;
@@ -475,7 +475,7 @@
             if (!acts.length) { subTitle.textContent = 'No actions'; return; }
 
             if (acts.some(a => a.wall)) {
-                subTitle.textContent = 'Registering wall…';
+                subTitle.textContent = 'Registering wall...';
                 const wall = await registerWall();
                 if (!wall) { subTitle.textContent = 'Wall failed'; return; }
                 acts = [...wall, ...acts.filter(a => !a.wall)];
@@ -502,13 +502,13 @@
                     if (!['ok','already_started'].includes(d.status)) { subTitle.textContent = `Start: ${d.status}`; return; }
                     const timer = typeof d.timer === 'number' ? d.timer : a.timer;
                     const wait = Math.max(1, timer) * 1000 + PAD;
-                    subTitle.textContent = `${n+1}/${acts.length} · ${Math.ceil(wait/1000)}s…`;
+                    subTitle.textContent = `${n+1}/${acts.length} · ${Math.ceil(wait/1000)}s...`;
                     await sleep(wait);
                     const done = await completeAction(a.id);
                     if (done.status !== 'ok') { subTitle.textContent = `Complete: ${done.status}`; return; }
                 }
             } else {
-                subTitle.textContent = `Starting ${acts.length} action(s)…`;
+                subTitle.textContent = `Starting ${acts.length} action(s)...`;
                 const started = [];
                 for (const a of acts) {
                     const d = await api('/api/locker_action_start.php', { link_action_id: a.id });
@@ -516,7 +516,7 @@
                 }
                 if (!started.length) { subTitle.textContent = 'All rejected'; return; }
                 const wait = Math.max(...started.map(x => x.timer)) * 1000 + PAD;
-                subTitle.textContent = `Waiting ${Math.ceil(wait/1000)}s…`;
+                subTitle.textContent = `Waiting ${Math.ceil(wait/1000)}s...`;
                 await sleep(wait);
                 for (const { id } of started) {
                     const done = await completeAction(id);
@@ -524,7 +524,7 @@
                 }
             }
 
-            subTitle.textContent = 'Unlocking…';
+            subTitle.textContent = 'Unlocking...';
             const ud = await api(location.href, { link_id: lid });
             if (ud.status !== 'ok' || !ud.data) { subTitle.textContent = 'Unlock failed'; return; }
 
@@ -547,7 +547,7 @@
 
         const LL_STEPS = {
             1: { pct: 33,  status: 'pending', bar: 'Waiting for verification',       sub: 'Complete the captcha below'  },
-            2: { pct: 66,  status: 'pending', bar: 'Captcha passed — fetching link', sub: 'Communicating with server…'  },
+            2: { pct: 66,  status: 'pending', bar: 'Captcha passed - fetching link', sub: 'Communicating with server...'  },
             3: { pct: 100, status: 'active',  bar: 'Link ready',                     sub: 'Destination resolved'        },
         };
 
@@ -804,7 +804,7 @@
 
                 for (const t of pending) {
                     if (t.__typename === 'WaitTask' && t.remainingWaitingTime) {
-                        throw new Error(`WaitTask wall (${t.remainingWaitingTime}s) — Please use any VPN`);
+                        throw new Error(`WaitTask wall (${t.remainingWaitingTime}s) - Please use any VPN`);
                     }
                     taskCount++;
                     onStatus?.(`Completing task ${taskCount}...`);
@@ -869,10 +869,10 @@
         const W = window;
         const S = {
             minimized: false, running: false, done: false, code: null, bypassUrl: null,
-            waitStart: 0, waitMs: 0, timer: 0, redirectTimer: 0, gate: null
+            waitStart: 0, waitMs: 0, timer: 0, redirectTimer: 0, gate: null, fetchPromise: null
         };
         const CFG = {
-            VRX_MIN_WAIT_MS: 35000, VRX_MAX_WAIT_MS: 40000, BST_WAIT_MS: 4000,
+            VRX_MIN_WAIT_MS: 10000, VRX_MAX_WAIT_MS: 15000, BST_WAIT_MS: 4000,
             BLUE: '#3b82f6', BLUE_DIM: '#1e40af', BLUE_GLOW: '#60a5fa', BLUE_BG: '#0a1020',
             BLUE_SUR: '#0f172a', TEXT: '#e2e8f0', MUTED: '#94a3b8', OK: '#4ade80', ERR: '#f87171',
             W: 260, W_MIN: 140,
@@ -902,10 +902,23 @@
             if (!/^https?:\/\//i.test(url)) return false;
             try {
                 const u = new URL(url);
-                const bad = ['bstshrt.com', 'www.bstshrt.com', 'google.com', 'googletagmanager.com'];
-                if (bad.includes(u.hostname)) return false;
-                const badPaths = ['/api/', '/_next/', '/static/', '.js', '.css', '.png', '.jpg', '.webp'];
-                if (badPaths.some(p => u.pathname.includes(p) || u.href.endsWith(p))) return false;
+                const currentHost = location.hostname.replace(/^www\./, '');
+                const host = u.hostname.replace(/^www\./, '');
+
+                const neverDest = [
+                    currentHost, 'bstshrt.com',
+                    'googletagmanager.com', 'google-analytics.com',
+                    'doubleclick.net', 'googlesyndication.com', 'adsbygoogle.com',
+                ];
+                if (neverDest.includes(host)) return false;
+
+                if (host === currentHost) {
+                    const badPaths = ['/api/', '/_next/', '/static/'];
+                    if (badPaths.some(p => u.pathname.includes(p))) return false;
+
+                    const badExts = ['.js','.css','.png','.jpg','.jpeg','.webp','.svg','.ico','.woff','.woff2','.ttf'];
+                    if (badExts.some(ext => u.pathname.toLowerCase().endsWith(ext))) return false;
+                }
                 return true;
             } catch (e) { return false; }
         }
@@ -914,6 +927,7 @@
             const html = document.documentElement.innerHTML;
             const patterns = [
                 /\\?"finalUrl\\?":\\?"(https?:[^"\\]+)\\?"/,
+                /\\?"final_url\\?":\\?"(https?:[^"\\]+)\\?"/,
                 /\\?"destination\\?":\\?"(https?:[^"\\]+)\\?"/,
                 /\\?"targetUrl\\?":\\?"(https?:[^"\\]+)\\?"/,
                 /\\?"redirectUrl\\?":\\?"(https?:[^"\\]+)\\?"/,
@@ -921,6 +935,7 @@
                 /\\?"continueUrl\\?":\\?"(https?:[^"\\]+)\\?"/,
                 /\\?"unlockUrl\\?":\\?"(https?:[^"\\]+)\\?"/,
                 /\\?"destination_url\\?":\\?"(https?:[^"\\]+)\\?"/,
+                /\\?"destinationUrl\\?":\\?"(https?:[^"\\]+)\\?"/,
             ];
             for (const rx of patterns) {
                 const m = html.match(rx);
@@ -935,10 +950,10 @@
             return { url: null, method: null };
         }
 
-        function req(url) {
+        function req(url, timeout = 15000) {
             return new Promise((resolve, reject) => {
                 GM_xmlhttpRequest({
-                    method: 'GET', url, timeout: 15000,
+                    method: 'GET', url, timeout,
                     onload: (r) => { if (r.status >= 200 && r.status < 300) resolve(r.responseText); else reject(new Error('HTTP ' + r.status)); },
                     onerror: () => reject(new Error('network')),
                     ontimeout: () => reject(new Error('timeout')),
@@ -956,7 +971,7 @@
 
         async function fetchVrx(endpoint) {
             try {
-                const txt = await req(endpoint);
+                const txt = await req(endpoint, 3000);
                 if (isValidCode(txt)) return { code: txt, source: 'direct' };
             } catch (e) {}
             const encoded = encodeURIComponent(endpoint);
@@ -965,13 +980,20 @@
                 { name: 'codetabs', url: 'https://api.codetabs.com/v1/proxy?quest=' + encoded },
                 { name: 'corsproxy', url: 'https://corsproxy.io/?url=' + encoded },
             ];
-            for (const p of proxies) {
-                try {
-                    const txt = await req(p.url);
-                    if (isValidCode(txt)) return { code: txt, source: p.name };
-                } catch (e) {}
-            }
-            return { code: null, source: null };
+            return new Promise((resolve) => {
+                let resolved = false;
+                let pending = proxies.length;
+                for (const p of proxies) {
+                    req(p.url, 12000).then(txt => {
+                        if (resolved) return;
+                        if (isValidCode(txt)) { resolved = true; resolve({ code: txt, source: p.name }); }
+                        else if (--pending === 0) resolve({ code: null, source: null });
+                    }).catch(() => {
+                        if (resolved) return;
+                        if (--pending === 0) resolve({ code: null, source: null });
+                    });
+                }
+            });
         }
 
         const panelHTML = `
@@ -1028,7 +1050,7 @@
                 <div class="bar" id="bar">
                     <span class="logo" id="logo"></span>
                     <span class="title" id="title">Ghost Bypass</span>
-                    <button class="btn" id="min" title="Minimize">—</button>
+                    <button class="btn" id="min" title="Minimize">-</button>
                 </div>
                 <div class="body" id="body">
                     <div class="status"><span class="k" id="k">IDLE</span><span class="v" id="v">scanning</span></div>
@@ -1099,7 +1121,7 @@
             btnMin.addEventListener('click', () => {
                 S.minimized = !S.minimized;
                 panel.classList.toggle('min', S.minimized);
-                btnMin.textContent = S.minimized ? '+' : '—';
+                btnMin.textContent = S.minimized ? '+' : '-';
             });
 
             let dragging = false, dragX = 0, dragY = 0, startX = 0, startY = 0;
@@ -1137,7 +1159,7 @@
                 setTimeout(() => { btnCopy.textContent = 'Copy'; }, 1200);
             });
 
-            log('loaded · ' + location.host + location.pathname);
+            log('loaded - ' + location.host + location.pathname);
 
             let tries = 0;
             const scan = setInterval(() => {
@@ -1148,7 +1170,7 @@
                     S.gate = g;
                     setStatus('READY', g.kind + ' / ' + g.name, 'ok');
                     log('gate: ' + g.kind + ' / ' + g.name);
-                    setTimeout(start, 600);
+                    setTimeout(start, 400);
                     return;
                 }
                 if (tries >= 30) {
@@ -1166,6 +1188,7 @@
             S.done = false;
             S.code = null;
             S.bypassUrl = null;
+            S.fetchPromise = null;
             const urlBox = $('urlBox');
             if (urlBox) urlBox.classList.remove('show');
             const btnStart = $('start');
@@ -1173,6 +1196,7 @@
 
             if (S.gate.kind === 'vrx') {
                 S.waitMs = CFG.VRX_MIN_WAIT_MS + Math.floor(Math.random() * (CFG.VRX_MAX_WAIT_MS - CFG.VRX_MIN_WAIT_MS));
+                S.fetchPromise = fetchVrx(S.gate.endpoint);
                 setStatus('WAIT', (S.waitMs / 1000).toFixed(1) + 's', 'run');
                 log('gate: vrx / ' + S.gate.name);
             } else if (S.gate.kind === 'bstshrt') {
@@ -1204,14 +1228,17 @@
         }
 
         async function runVrx() {
-            setStatus('FETCH', 'loading…', 'run');
-            const result = await fetchVrx(S.gate.endpoint);
-            if (!result.code) { setStatus('FAIL', 'no response', 'err'); S.running = false; $('start').disabled = false; $('start').textContent = 'Retry'; return; }
+            setStatus('FETCH', 'loading...', 'run');
+            let result = S.fetchPromise ? await S.fetchPromise : null;
+            if (!result || !result.code) {
+                result = await fetchVrx(S.gate.endpoint);
+            }
+            if (!result || !result.code) { setStatus('FAIL', 'no response', 'err'); S.running = false; const b = $('start'); if (b) { b.disabled = false; b.textContent = 'Retry'; } return; }
             S.code = result.code; S.source = result.source; S.done = true; S.running = false;
-            setStatus('DONE', result.source + ' · ' + result.code.length + 'B', 'ok');
+            setStatus('DONE', result.source + ' - ' + result.code.length + 'B', 'ok');
             setProgress(100);
-            $('start').textContent = 'Copied';
-            $('start').disabled = true;
+            const b = $('start');
+            if (b) { b.textContent = 'Copied'; b.disabled = true; }
             try { GM_setClipboard(result.code, 'text'); } catch (e) {}
             log('copied to clipboard', 'ok');
             applyToVrx(result.code);
@@ -1236,18 +1263,18 @@
 
         function runBstshrt() {
             const result = extractBstshrt();
-            if (!result.url) { setStatus('FAIL', 'no destination', 'err'); log('payload: no url', 'err'); log('meta: no refresh', 'err'); S.running = false; $('start').disabled = false; $('start').textContent = 'Retry'; return; }
+            if (!result.url) { setStatus('FAIL', 'no destination', 'err'); log('payload: no url', 'err'); log('meta: no refresh', 'err'); S.running = false; const b = $('start'); if (b) { b.disabled = false; b.textContent = 'Retry'; } return; }
             S.bypassUrl = result.url; S.done = true; S.running = false;
             const urlBox = $('urlBox');
             urlBox.textContent = result.url;
             urlBox.classList.add('show');
             setStatus('DONE', 'via ' + result.method, 'ok');
             setProgress(100);
-            $('start').textContent = 'Go';
-            $('start').disabled = false;
+            const b = $('start');
+            if (b) { b.textContent = 'Go'; b.disabled = false; }
             try { GM_setClipboard(result.url, 'text'); } catch (e) {}
             log('url: ' + result.url, 'ok');
-            log('redirecting in 2s — Copy cancels');
+            log('redirecting in 2s - Copy cancels');
             S.redirectTimer = setTimeout(() => { location.href = result.url; }, 2000);
         }
 
