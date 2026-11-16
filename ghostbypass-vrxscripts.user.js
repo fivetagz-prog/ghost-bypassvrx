@@ -2,8 +2,7 @@
 // @name         Ghost Bypass
 // @namespace    https://github.com/ghost-bypass
 // @version      1.0.4
-// @description  Auto-bypass vrxscripts, bstshrt, Lootlabs, Linkvertise, BoostyLink, Bstlar
-// @match        https://vrxscripts.virexx.workers.dev/*
+// @description  Auto-bypass bstshrt, Lootlabs, Linkvertise, BoostyLink, Bstlar, Link-Unlock
 // @match        https://bstshrt.com/*
 // @match        https://www.bstshrt.com/*
 // @match        https://lootlabs.gg/*
@@ -26,6 +25,8 @@
 // @match        https://link-center.net/*
 // @match        https://direct-link.net/*
 // @match        https://nerventualken.com/*
+// @match        https://link-unlock.com/*
+// @match        https://www.link-unlock.com/*
 // @run-at       document-start
 // @grant        unsafeWindow
 // @grant        GM_xmlhttpRequest
@@ -33,26 +34,29 @@
 // @grant        GM.xmlHttpRequest
 // @connect      ad-server.linkvertise.com
 // @connect      publisher.linkvertise.com
+// @connect      link-unlock.com
+// @connect      www.link-unlock.com
 // @connect      *
 // ==/UserScript==
 
 (function () {
     'use strict';
 
-    const HOST        = location.hostname;
-    const IS_BSTLAR   = HOST === 'bstlar.com' || HOST.endsWith('.bstlar.com');
-    const IS_BOOSTY   = HOST === 'boostylink.com' || HOST.endsWith('.boostylink.com');
-    const IS_CAPTCHA  = HOST.includes('nerventualken.com');
-    const IS_LOOTLABS = !IS_CAPTCHA && (HOST.includes('lootlabs.gg') || HOST.includes('loot-links') || HOST.includes('lootdest') || HOST.includes('lootlinks'));
-    const LV_HOSTS    = ['linkvertise.com','link-to.net','link-hub.net','link-target.org','link-target.net','link-center.net','direct-link.net'];
-    const IS_LV       = LV_HOSTS.some(h => HOST === h || HOST.endsWith('.' + h));
-    const IS_VRX      = HOST === 'vrxscripts.virexx.workers.dev';
-    const IS_BST      = HOST === 'bstshrt.com';
+    const HOST           = location.hostname;
+    const IS_BSTLAR      = HOST === 'bstlar.com' || HOST.endsWith('.bstlar.com');
+    const IS_BOOSTY      = HOST === 'boostylink.com' || HOST.endsWith('.boostylink.com');
+    const IS_CAPTCHA     = HOST.includes('nerventualken.com');
+    const IS_LOOTLABS    = !IS_CAPTCHA && (HOST.includes('lootlabs.gg') || HOST.includes('loot-links') || HOST.includes('lootdest') || HOST.includes('lootlinks'));
+    const LV_HOSTS       = ['linkvertise.com','link-to.net','link-hub.net','link-target.org','link-target.net','link-center.net','direct-link.net'];
+    const IS_LV          = LV_HOSTS.some(h => HOST === h || HOST.endsWith('.' + h));
+    const IS_BST         = HOST === 'bstshrt.com';
+    const IS_LINK_UNLOCK = HOST === 'link-unlock.com' || HOST === 'www.link-unlock.com';
 
     const CONFIG = {
         debug:       false,
         lootlabs:    { enabled: true, autoRedirect: false },
         linkvertise: { enabled: true, autoRedirect: true,  maxIterations: 15 },
+        linkUnlock:  { enabled: true, autoRedirect: false },
     };
 
     const dbg   = (...a) => CONFIG.debug && console.log('[Bypass]', ...a);
@@ -274,14 +278,14 @@
             for (let i = 0; i < total; i++) {
                 const task = tasks[i];
                 if (task.completed) {
-                    sub.textContent = `${i+1}/${total} · already done`;
+                    sub.textContent = `${i+1}/${total} - already done`;
                     continue;
                 }
 
                 const timer = parseInt(task.taskzone || task.time_left || 20) || 20;
                 const wait = timer + 2;
 
-                sub.textContent = `${i+1}/${total} · ${(task.title || task.description || 'task').slice(0, 40)} (${wait}s)`;
+                sub.textContent = `${i+1}/${total} - ${(task.title || task.description || 'task').slice(0, 40)} (${wait}s)`;
                 await sleep(wait * 1000);
 
                 try {
@@ -291,7 +295,7 @@
                     return;
                 }
 
-                sub.textContent = `${i+1}/${total} · confirming...`;
+                sub.textContent = `${i+1}/${total} - confirming...`;
                 const done = await waitFor(() => vm.interactiveTasks[i] && vm.interactiveTasks[i].completed, 30000);
                 if (!done) {
                     sub.textContent = `Task ${i+1} rejected by server`;
@@ -299,7 +303,7 @@
                 }
             }
 
-            sub.textContent = 'All tasks done — reloading to unlock...';
+            sub.textContent = 'All tasks done - reloading to unlock...';
             sessionStorage.setItem(RELOAD_MARKER, '1');
             await sleep(800);
             location.reload();
@@ -484,7 +488,7 @@
             if (acts.some(a => a.lv)) {
                 for (let n = 0; n < acts.length; n++) {
                     const a = acts[n];
-                    subTitle.textContent = `${n+1}/${acts.length} · ${a.label}`;
+                    subTitle.textContent = `${n+1}/${acts.length} - ${a.label}`;
                     if (a.lv) {
                         const offer = await resolveOffer(a.id, a.lv);
                         if (!offer) { subTitle.textContent = 'Offer failed'; return; }
@@ -502,7 +506,7 @@
                     if (!['ok','already_started'].includes(d.status)) { subTitle.textContent = `Start: ${d.status}`; return; }
                     const timer = typeof d.timer === 'number' ? d.timer : a.timer;
                     const wait = Math.max(1, timer) * 1000 + PAD;
-                    subTitle.textContent = `${n+1}/${acts.length} · ${Math.ceil(wait/1000)}s...`;
+                    subTitle.textContent = `${n+1}/${acts.length} - ${Math.ceil(wait/1000)}s...`;
                     await sleep(wait);
                     const done = await completeAction(a.id);
                     if (done.status !== 'ok') { subTitle.textContent = `Complete: ${done.status}`; return; }
@@ -865,14 +869,13 @@
         window.addEventListener('DOMContentLoaded', mount);
     }
 
-    if (IS_VRX || IS_BST) {
-        const W = window;
+    if (IS_BST) {
         const S = {
-            minimized: false, running: false, done: false, code: null, bypassUrl: null,
-            waitStart: 0, waitMs: 0, timer: 0, redirectTimer: 0, gate: null, fetchPromise: null
+            minimized: false, running: false, done: false, bypassUrl: null,
+            waitStart: 0, waitMs: 0, timer: 0, redirectTimer: 0, gate: null
         };
         const CFG = {
-            VRX_MIN_WAIT_MS: 10000, VRX_MAX_WAIT_MS: 15000, BST_WAIT_MS: 4000,
+            BST_WAIT_MS: 4000,
             BLUE: '#3b82f6', BLUE_DIM: '#1e40af', BLUE_GLOW: '#60a5fa', BLUE_BG: '#0a1020',
             BLUE_SUR: '#0f172a', TEXT: '#e2e8f0', MUTED: '#94a3b8', OK: '#4ade80', ERR: '#f87171',
             W: 260, W_MIN: 140,
@@ -880,11 +883,6 @@
 
         function detectGate() {
             const host = location.host.replace(/^www\./, '');
-            if (host === 'vrxscripts.virexx.workers.dev') {
-                const m = location.href.match(/\/s\/([^/?#]+)/);
-                if (!m) return null;
-                return { kind: 'vrx', name: m[1], endpoint: location.origin + '/api/code/' + m[1] };
-            }
             if (host === 'bstshrt.com') {
                 const m = location.pathname.match(/\/u\/([^/?#]+)/);
                 if (m) return { kind: 'bstshrt', name: m[1] };
@@ -948,52 +946,6 @@
                 if (m) { const url = cleanUrl(m[1].trim().replace(/^['"]|['"]$/g, '')); if (isPlausibleDest(url)) return { url, method: 'meta' }; }
             }
             return { url: null, method: null };
-        }
-
-        function req(url, timeout = 15000) {
-            return new Promise((resolve, reject) => {
-                GM_xmlhttpRequest({
-                    method: 'GET', url, timeout,
-                    onload: (r) => { if (r.status >= 200 && r.status < 300) resolve(r.responseText); else reject(new Error('HTTP ' + r.status)); },
-                    onerror: () => reject(new Error('network')),
-                    ontimeout: () => reject(new Error('timeout')),
-                });
-            });
-        }
-
-        function isValidCode(text) {
-            if (!text) return false;
-            const t = text.trim();
-            if (t.length < 20) return false;
-            if (/^<!doctype/i.test(t) || /^<html/i.test(t)) return false;
-            return true;
-        }
-
-        async function fetchVrx(endpoint) {
-            try {
-                const txt = await req(endpoint, 3000);
-                if (isValidCode(txt)) return { code: txt, source: 'direct' };
-            } catch (e) {}
-            const encoded = encodeURIComponent(endpoint);
-            const proxies = [
-                { name: 'allorigins', url: 'https://api.allorigins.win/raw?url=' + encoded },
-                { name: 'codetabs', url: 'https://api.codetabs.com/v1/proxy?quest=' + encoded },
-                { name: 'corsproxy', url: 'https://corsproxy.io/?url=' + encoded },
-            ];
-            return new Promise((resolve) => {
-                let resolved = false;
-                let pending = proxies.length;
-                for (const p of proxies) {
-                    req(p.url, 12000).then(txt => {
-                        if (resolved) return;
-                        if (isValidCode(txt)) { resolved = true; resolve({ code: txt, source: p.name }); }
-                        else if (--pending === 0) resolve({ code: null, source: null });
-                    }).catch(() => {
-                        if (resolved) return;
-                        if (--pending === 0) resolve({ code: null, source: null });
-                    });
-                }
-            });
         }
 
         const panelHTML = `
@@ -1146,12 +1098,11 @@
 
             btnStart.addEventListener('click', () => {
                 if (S.done && S.bypassUrl) { clearTimeout(S.redirectTimer); location.href = S.bypassUrl; return; }
-                if (S.done && S.code) { try { GM_setClipboard(S.code, 'text'); } catch (e) {} log('re-copied', 'ok'); return; }
                 start();
             });
 
             btnCopy.addEventListener('click', () => {
-                const val = S.bypassUrl || S.code;
+                const val = S.bypassUrl;
                 if (!val) { log('nothing to copy', 'err'); return; }
                 if (S.bypassUrl) { clearTimeout(S.redirectTimer); log('redirect cancelled', 'ok'); setStatus('COPIED', 'redirect cancelled', 'ok'); }
                 try { GM_setClipboard(val, 'text'); } catch (e) {}
@@ -1186,20 +1137,13 @@
             if (!S.gate) { setStatus('NO GATE', 'unsupported page', 'err'); log('no gate detected', 'err'); return; }
             S.running = true;
             S.done = false;
-            S.code = null;
             S.bypassUrl = null;
-            S.fetchPromise = null;
             const urlBox = $('urlBox');
             if (urlBox) urlBox.classList.remove('show');
             const btnStart = $('start');
             if (btnStart) { btnStart.disabled = true; btnStart.textContent = 'Working'; }
 
-            if (S.gate.kind === 'vrx') {
-                S.waitMs = CFG.VRX_MIN_WAIT_MS + Math.floor(Math.random() * (CFG.VRX_MAX_WAIT_MS - CFG.VRX_MIN_WAIT_MS));
-                S.fetchPromise = fetchVrx(S.gate.endpoint);
-                setStatus('WAIT', (S.waitMs / 1000).toFixed(1) + 's', 'run');
-                log('gate: vrx / ' + S.gate.name);
-            } else if (S.gate.kind === 'bstshrt') {
+            if (S.gate.kind === 'bstshrt') {
                 S.waitMs = CFG.BST_WAIT_MS;
                 setStatus('WAIT', (S.waitMs / 1000).toFixed(1) + 's', 'run');
                 log('gate: bstshrt / ' + S.gate.name);
@@ -1223,42 +1167,7 @@
         }
 
         async function runFetch() {
-            if (S.gate.kind === 'vrx') return runVrx();
             if (S.gate.kind === 'bstshrt') return runBstshrt();
-        }
-
-        async function runVrx() {
-            setStatus('FETCH', 'loading...', 'run');
-            let result = S.fetchPromise ? await S.fetchPromise : null;
-            if (!result || !result.code) {
-                result = await fetchVrx(S.gate.endpoint);
-            }
-            if (!result || !result.code) { setStatus('FAIL', 'no response', 'err'); S.running = false; const b = $('start'); if (b) { b.disabled = false; b.textContent = 'Retry'; } return; }
-            S.code = result.code; S.source = result.source; S.done = true; S.running = false;
-            setStatus('DONE', result.source + ' - ' + result.code.length + 'B', 'ok');
-            setProgress(100);
-            const b = $('start');
-            if (b) { b.textContent = 'Copied'; b.disabled = true; }
-            try { GM_setClipboard(result.code, 'text'); } catch (e) {}
-            log('copied to clipboard', 'ok');
-            applyToVrx(result.code);
-        }
-
-        function applyToVrx(code) {
-            const codeEl = document.getElementById('code');
-            if (codeEl) codeEl.textContent = code;
-            const reward = document.getElementById('reward');
-            if (reward) { reward.classList.add('show'); reward.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
-            const gate = document.getElementById('gate-script');
-            if (gate) {
-                gate.querySelectorAll('.step').forEach(s => s.setAttribute('data-state', 'done'));
-                gate.querySelectorAll('.step-fill').forEach(f => { f.style.transition = 'transform .4s ease'; f.style.transform = 'scaleX(1)'; });
-                const cnt = gate.querySelector('.gate-count b');
-                if (cnt) cnt.textContent = '4';
-                const go = gate.querySelector('.gate-go');
-                if (go) go.disabled = false;
-                gate.classList.add('opened');
-            }
         }
 
         function runBstshrt() {
@@ -1283,5 +1192,237 @@
         } else {
             initUI();
         }
+    }
+
+    if (IS_LINK_UNLOCK && CONFIG.linkUnlock.enabled) {
+        let captured = null;
+        let completeEndpoint = null;
+        let getEndpoint = null;
+        let started = false;
+        let modalCreated = false;
+
+        function ensureModal() {
+            if (modalCreated) return;
+            modalCreated = true;
+            try { createAdModal(); } catch (e) { console.error('[LU] modal', e); }
+        }
+
+        function setUI(title, sub, status) {
+            ensureModal();
+            const t = document.getElementById('ll-card-title');
+            const s = document.getElementById('ll-card-sub');
+            const st = document.getElementById('gam-status-text');
+            if (t) t.textContent = title;
+            if (s) s.textContent = sub;
+            if (st) st.textContent = status;
+        }
+
+        function stashSteps(ids) {
+            try {
+                sessionStorage.setItem('unlocker-completed-steps', JSON.stringify(ids));
+                sessionStorage.removeItem('unlocker-step-attempts');
+            } catch (e) {}
+        }
+
+        function tryStashSteps() {
+            try {
+                const raw = sessionStorage.getItem('unlocker-completed-steps');
+                if (!raw) return false;
+                const arr = JSON.parse(raw);
+                if (Array.isArray(arr) && arr.length) {
+                    const cur = captured.unlock || captured;
+                    const allIds = (cur.steps || []).map(s => s && s.id).filter(Boolean);
+                    const filtered = arr.filter(x => allIds.includes(x));
+                    if (filtered.length) {
+                        sessionStorage.setItem('unlocker-completed-steps', JSON.stringify(filtered));
+                        return true;
+                    }
+                }
+            } catch (e) {}
+            return false;
+        }
+
+        window.addEventListener('ghost_lu_capture', function (e) {
+            try {
+                const parsed = JSON.parse(e.detail);
+                if (!parsed || !parsed.data) return;
+                const d = parsed.data;
+                if (!(d.unlock || (d.steps && Array.isArray(d.steps)))) return;
+                captured = d;
+                getEndpoint = parsed.url;
+                completeEndpoint = parsed.url + '/complete';
+                if (started) return;
+                started = true;
+                runBypass();
+            } catch (err) { console.error('[LU] capture', err); }
+        });
+
+        const injectScript = document.createElement('script');
+        injectScript.textContent = `
+            (function() {
+                if (window.__ghostLU) return;
+                window.__ghostLU = true;
+                var origFetch = window.fetch;
+                window.fetch = async function() {
+                    var input = arguments[0];
+                    var opts = arguments[1] || {};
+                    var url = typeof input === 'string' ? input : (input && input.url) || '';
+                    var method = (opts.method || (input && input.method) || 'GET').toUpperCase();
+                    var resp = await origFetch.apply(this, arguments);
+                    try {
+                        if (method === 'GET' && resp && resp.ok) {
+                            var ct = resp.headers.get('content-type') || '';
+                            if (ct.indexOf('json') !== -1) {
+                                var clone = resp.clone();
+                                var data = await clone.json().catch(function() { return null; });
+                                if (data && (data.unlock || (Array.isArray(data.steps) && data.steps.length))) {
+                                    window.dispatchEvent(new CustomEvent('ghost_lu_capture', { detail: JSON.stringify({ url: url, data: data }) }));
+                                }
+                            }
+                        }
+                    } catch (e) {}
+                    return resp;
+                };
+                var XO = window.XMLHttpRequest.prototype.open;
+                var XS = window.XMLHttpRequest.prototype.send;
+                window.XMLHttpRequest.prototype.open = function(m, u) {
+                    this.__gm = (m || 'GET').toUpperCase();
+                    this.__gu = u;
+                    return XO.apply(this, arguments);
+                };
+                window.XMLHttpRequest.prototype.send = function() {
+                    var self = this;
+                    self.addEventListener('load', function() {
+                        try {
+                            if (self.__gm === 'GET' && self.status === 200) {
+                                var ct = self.getResponseHeader('content-type') || '';
+                                if (ct.indexOf('json') !== -1) {
+                                    var data = JSON.parse(self.responseText);
+                                    if (data && (data.unlock || (Array.isArray(data.steps) && data.steps.length))) {
+                                        window.dispatchEvent(new CustomEvent('ghost_lu_capture', { detail: JSON.stringify({ url: self.__gu, data: data }) }));
+                                    }
+                                }
+                            }
+                        } catch (e) {}
+                    });
+                    return XS.apply(this, arguments);
+                };
+                console.log('[Ghost LU] page hook installed');
+            })();
+        `;
+        (document.head || document.documentElement).appendChild(injectScript);
+
+        setTimeout(function () {
+            if (!started) {
+                setUI('Link-Unlock Bypass', 'Waiting for /u/ capture...', 'Listening');
+                try {
+                    if (tryStashSteps()) {
+                        setUI('Link-Unlock Bypass', 'Stashed steps ready - click Unlock', 'Reloading');
+                        setTimeout(() => location.reload(), 800);
+                    }
+                } catch (e) {}
+            }
+        }, 3000);
+
+        async function runBypass() {
+            ensureModal();
+            const unlock = captured.unlock || captured;
+            const steps = unlock.steps || [];
+            const stepIds = steps.map(x => x && x.id).filter(Boolean);
+            const directDest = unlock.destinationUrl || captured.destinationUrl;
+
+            console.log('[LU] steps', steps);
+            console.log('[LU] stepIds', stepIds);
+            console.log('[LU] directDest', directDest);
+
+            if (directDest && /^https?:\/\//.test(directDest)) {
+                setUI('Unlocked', 'Destination from payload', 'Success');
+                try { GM_setClipboard(directDest); } catch (e) {}
+                enableRedirectBtn(directDest, CONFIG.linkUnlock.autoRedirect);
+                return;
+            }
+
+            if (!completeEndpoint) {
+                setUI('Failed', 'No complete endpoint', 'Error');
+                return;
+            }
+
+            const hasMonetization = steps.some(s => /operagx|adnetwork/.test(s.type || ''));
+
+            setUI('Working', 'POSTing ' + steps.length + ' step(s)', 'Completing');
+
+            const W = (typeof unsafeWindow !== 'undefined') ? unsafeWindow : window;
+
+            const doComplete = async (sessions) => {
+                const r = await W.fetch(completeEndpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ steps: stepIds, offerSessions: sessions || {} }),
+                });
+                let data = null;
+                try { data = await r.json(); } catch (e) {}
+                return { status: r.status, ok: r.ok, data };
+            };
+
+            try {
+                let result = await doComplete({});
+                console.log('[LU] POST1', result.status, result.data);
+
+                const dest1 = result.data && (result.data.destinationUrl || result.data.url || result.data.destination);
+                if (dest1 && /^https?:\/\//.test(dest1)) {
+                    setUI('Unlocked', 'Destination resolved', 'Success');
+                    try { GM_setClipboard(dest1); } catch (e) {}
+                    enableRedirectBtn(dest1, CONFIG.linkUnlock.autoRedirect);
+                    return;
+                }
+
+                if (hasMonetization) {
+                    setUI('Working', 'Starting offer sessions...', 'Sessions');
+                    const offerEndpoint = getEndpoint.replace(/\/u\/[^/?#]+$/, '/offers/session/start');
+                    const slug = unlock.slug || location.pathname.split('/').filter(Boolean)[0];
+                    const sessions = {};
+                    for (const s of steps) {
+                        if (!/operagx|adnetwork/.test(s.type || '')) continue;
+                        try {
+                            const sr = await W.fetch(offerEndpoint, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                credentials: 'include',
+                                body: JSON.stringify({ slug, stepId: s.id }),
+                            });
+                            const sd = await sr.json();
+                            if (sd && sd.clickId) sessions[s.id] = sd.clickId;
+                            if (sd && sd.offerUrl) {
+                                try { W.open(sd.offerUrl, '_blank'); } catch (e) {}
+                            }
+                        } catch (e) {}
+                    }
+                    result = await doComplete(sessions);
+                    console.log('[LU] POST2', result.status, result.data);
+                }
+
+                const dest2 = result.data && (result.data.destinationUrl || result.data.url || result.data.destination);
+                if (dest2 && /^https?:\/\//.test(dest2)) {
+                    setUI('Unlocked', 'Destination resolved', 'Success');
+                    try { GM_setClipboard(dest2); } catch (e) {}
+                    enableRedirectBtn(dest2, CONFIG.linkUnlock.autoRedirect);
+                    return;
+                }
+
+                const msg = (result.data && (result.data.error || result.data.message)) || ('HTTP ' + result.status);
+                console.log('[LU] blocked', msg);
+                stashSteps(stepIds);
+                setUI('Retry', 'Reloading with stashed steps', 'Stash ' + stepIds.length);
+                setTimeout(() => location.reload(), 1200);
+            } catch (e) {
+                console.error('[LU] POST error', e);
+                stashSteps(stepIds);
+                setUI('Retry', 'Network error - reloading', 'Stashed');
+                setTimeout(() => location.reload(), 1200);
+            }
+        }
+
+        return;
     }
 })();
