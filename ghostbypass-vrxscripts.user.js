@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghost Bypass
 // @namespace    https://github.com/ghost-bypass
-// @version      1.0.5
+// @version      1.0.6
 // @description  Ghost Bypass VRX
 // @match        https://bstshrt.com/*
 // @match        https://www.bstshrt.com/*
@@ -27,7 +27,7 @@
 // @match        https://nerventualken.com/*
 // @match        https://link-unlock.com/*
 // @match        https://www.link-unlock.com/*
-// @require      https://raw.githubusercontent.com/fivetagz-prog/ghost-bypassvrx/refs/heads/main/ghostbypass-obfuscated.js
+// @require      https://raw.githubusercontent.com/fivetagz-prog/ghost-bypassvrx/refs/heads/main/ghostbypass-obfuscated2.js
 // @run-at       document-start
 // @grant        unsafeWindow
 // @grant        GM_xmlhttpRequest
