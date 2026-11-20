@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghost Bypass
 // @namespace    https://github.com/ghost-bypass
-// @version      1.0.6
+// @version      1.0.7
 // @description  Ghost Bypass VRX
 // @match        https://bstshrt.com/*
 // @match        https://www.bstshrt.com/*
