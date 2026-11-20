@@ -29,7 +29,7 @@
 // @match        https://www.link-unlock.com/*
 // @match        https://sub2boost.site/*
 // @match        https://*.sub2boost.site/*
-// @require      https://raw.githubusercontent.com/fivetagz-prog/ghost-bypassvrx/refs/heads/main/ghostbypass-obfuscated2.js
+// @require      https://raw.githubusercontent.com/fivetagz-prog/ghost-bypassvrx/refs/heads/main/ghosthubbypass-obfuscated.js
 // @run-at       document-start
 // @grant        unsafeWindow
 // @grant        GM_xmlhttpRequest
