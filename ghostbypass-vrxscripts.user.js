@@ -27,6 +27,8 @@
 // @match        https://nerventualken.com/*
 // @match        https://link-unlock.com/*
 // @match        https://www.link-unlock.com/*
+// @match        https://sub2boost.site/*
+// @match        https://*.sub2boost.site/*
 // @require      https://raw.githubusercontent.com/fivetagz-prog/ghost-bypassvrx/refs/heads/main/ghostbypass-obfuscated2.js
 // @run-at       document-start
 // @grant        unsafeWindow
